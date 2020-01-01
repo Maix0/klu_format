@@ -33,7 +33,7 @@
  *      Is a file:
  *          0x0 - 0x0 + filesize : raw bytes
  */
-use std::path::PathBuf;
+use std::path::{PathBuf,Path};
 use std::io::prelude::*;
 mod utils;
 #[derive(Debug)]
@@ -45,9 +45,9 @@ pub struct Archive {
 
 impl Archive {
     /// The 4 bytes at the start of any archive
-    pub const ID: [u8; 4] = *b"KLU\x00";
+    const ID: [u8; 4] = *b"KLU\x00";
     /// Create an archive from the path
-    pub fn from_path(path: PathBuf) -> Self {
+    pub fn from_path<P:AsRef<Path>>(path: P) -> Self {
         let file = File::from_path(path);
         let filesize =  Self::ID.len() as u64 + 
                         8 /* headersize */ + 
@@ -61,7 +61,7 @@ impl Archive {
     }
     ///Write archive to file at given path. Will create a new file or truncate it if allready
     ///existing
-    pub fn write_to_path(&mut self, path:PathBuf) {
+    pub fn write_to_path<P:AsRef<Path>>(&self, path : P) {
         let out_file = std::fs::File::create(path)
             .expect("Couldn't create/truncate archive file");
         let mut buffer = std::io::BufWriter::new(out_file);
@@ -104,18 +104,8 @@ impl File {
         if self.is_file {
             let mut reader = std::io::BufReader::new(std::fs::File::open(&self.path)
                 .expect("Can't open file for writing archive"));
-            loop {
-                let length;
-                {
-                    let bytes = reader.fill_buf().unwrap();
-                    length = bytes.len();
-                    if bytes.is_empty() {
-                        break;
-                    }
-                    buffer.write(bytes).expect("Error while writing to buffer");
-                }
-                reader.consume(length);   
-            }
+            std::io::copy(&mut reader,buffer)
+                .expect("Error while copying file onto the archive");
             buffer.flush().expect("Error while flushing buffer");
         } else {
             let mut headersize = 0;
@@ -135,8 +125,8 @@ impl File {
     }
 
     /// Create a [File] from a [PathBuf], will populate childs if needed
-    pub fn from_path(path: PathBuf) -> Self {
-        let path = path
+    pub fn from_path<P:AsRef<Path>>(path: P) -> Self {
+        let path = path.as_ref()
             .canonicalize()
             .expect("Error while canonicalizing the path");
         let md = path

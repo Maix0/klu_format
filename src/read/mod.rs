@@ -37,8 +37,6 @@ mod utils;
 use std::io::prelude::*;
 use std::path::Path;
 
-pub fn test() {}
-
 #[derive(Debug)]
 pub struct Archive {
     file: File,
@@ -73,10 +71,42 @@ impl Archive {
             filesize,
         }
     }
+    pub fn path_exist<P: AsRef<Path>>(&mut self, path: P) -> bool {
+        match self.get_with_path(path) {
+            Some(_) => true,
+            None => false,
+        }
+    }
+    fn get_with_path<P: AsRef<Path>>(&self, path: P) -> Option<&File> {
+        let path = path
+            .as_ref()
+            .iter()
+            .map(|x| &*x.to_str().unwrap())
+            .collect::<Vec<&str>>();
+        let mut f = None;
+        if path[0] == self.file.filename {
+            f = Some(&self.file);
+            for name in &path[1..] {
+                if let Some(file) = f {
+                    let mut flag = false;
+                    for child in &file.child {
+                        if &child.filename == name {
+                            f = Some(child);
+                            flag = true;
+                        }
+                    }
+                    if flag == false {
+                        f = None;
+                    }
+                }
+            }
+        }
+        f
+    }
 }
 
-#[derive(Debug)]
-pub struct File {
+#[derive(Debug, Clone)]
+struct File {
     filename: String,
     filesize: u64,
     is_file: bool,
@@ -136,6 +166,17 @@ impl Archive {
         }
         self.file.write_to_path(&mut self.buffer, path);
     }
+
+    pub fn get_virtual<P: AsRef<Path>>(&mut self, path: P) -> Option<VirtualFile> {
+        let sizes = match self.get_with_path(path) {
+            Some(f) => Some((f.relative_offset as usize, f.filesize as usize)),
+            None => None,
+        };
+        if sizes == None {
+            return None;
+        }
+        Some(VirtualFile::from_sizes(sizes.unwrap(), &mut self.buffer))
+    }
 }
 
 impl File {
@@ -179,5 +220,114 @@ impl File {
                 child.write_to_path(archive, output.as_ref().join(child.filename.clone()));
             }
         }
+    }
+}
+#[derive(Debug)]
+pub struct VirtualFile<'a> {
+    buffer: &'a mut std::io::BufReader<std::fs::File>,
+    start_offset: usize,
+    end_offset: usize,
+    current_offset: usize,
+}
+impl<'a> VirtualFile<'a> {
+    /*
+    fn from_file(f: &File, b: &'a mut std::io::BufReader<std::fs::File>) -> Self {
+        VirtualFile {
+            buffer: b,
+            start_offset: f.relative_offset as usize,
+            end_offset: (f.relative_offset + f.filesize) as usize,
+            current_offset: 0,
+        }
+    }*/
+    fn from_sizes(s: (usize, usize), b: &'a mut std::io::BufReader<std::fs::File>) -> Self {
+        VirtualFile {
+            buffer: b,
+            start_offset: s.0,
+            end_offset: s.0 + s.1,
+            current_offset: 0,
+        }
+    }
+}
+
+impl<'a> Read for VirtualFile<'a> {
+    fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+        self.buffer.seek(std::io::SeekFrom::Start(
+            (self.start_offset + self.current_offset) as u64,
+        ))?;
+        let bytes_left = self.end_offset - self.start_offset - self.current_offset;
+        let buffer_len = buffer.len();
+        let nbuf_size = if buffer_len < bytes_left {
+            buffer_len
+        } else {
+            bytes_left
+        };
+        if bytes_left == 0 || buffer.len() == 0 {
+            return Ok(0);
+        }
+        self.buffer.read(&mut buffer[0..nbuf_size])?;
+        self.current_offset += nbuf_size;
+        Ok(nbuf_size)
+    }
+}
+//Os { code: 22, kind: InvalidInput, message: "Invalid argument" }
+
+impl<'a> Seek for VirtualFile<'a> {
+    fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
+        use std::io::SeekFrom;
+        match pos {
+            SeekFrom::Start(n) => {
+                self.current_offset = n as usize;
+                if self.current_offset + self.start_offset > self.end_offset {
+                    self.current_offset = self.end_offset;
+                }
+            }
+            SeekFrom::Current(n) => {
+                if (self.current_offset as i64) < n {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        "Invalid argument",
+                    ));
+                } else {
+                    if (self.current_offset + self.start_offset) as i64 + n > self.end_offset as i64
+                    {
+                        self.current_offset = self.end_offset;
+                    }
+                }
+            }
+            SeekFrom::End(n) => {
+                if (self.start_offset as i64) > self.end_offset as i64 - n as i64 {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        "Invalid argument",
+                    ));
+                }
+                if n >= 0 {
+                    self.current_offset = self.end_offset;
+                } else {
+                    self.current_offset = self.end_offset - n as usize;
+                }
+            }
+        }
+        self.buffer.seek(std::io::SeekFrom::Start(
+            (self.current_offset + self.start_offset) as u64,
+        ))?;
+        Ok(self.current_offset as u64)
+    }
+}
+
+impl<'a> BufRead for VirtualFile<'a> {
+    fn fill_buf(&mut self) -> std::io::Result<&[u8]> {
+        self.seek(std::io::SeekFrom::Start(self.current_offset as u64))
+            .expect("Error while reading VirtualFile");
+        let mut buffer = self.buffer.fill_buf()?;
+        let bytes_left = self.end_offset - self.start_offset - self.current_offset;
+        let buffer_len = buffer.len();
+        if buffer_len > bytes_left {
+            buffer = &buffer[..bytes_left];
+        }
+        Ok(buffer)
+    }
+    fn consume(&mut self, amt: usize) {
+        self.current_offset += amt;
     }
 }
