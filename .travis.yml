@@ -8,7 +8,6 @@ env:
 matrix:
   include:
   - env: TARGET=x86_64-unknown-linux-gnu 
-    os: osx
   - env: TARGET=x86_64-apple-darwin
     os: osx
   - env: TARGET=x86_64-pc-windows-gnu
@@ -45,7 +44,7 @@ deploy:
   file_glob: true
   file: $CRATE_NAME-$TRAVIS_TAG-$TARGET.*
   on:
-    condition: $RUST_VERSION = stable
-    repo: Maix0/klu_format
+    condition: $TRAVIS_RUST_VERSION = stable
+    # repo: Maix0/klu_format
     branch: cli
   skip_cleanup: true 
