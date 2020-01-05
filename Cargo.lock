@@ -144,7 +144,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "klu"
+name = "klu_core"
 version = "0.1.0"
 dependencies = [
  "image 0.22.3 (registry+https://github.com/rust-lang/crates.io-index)",
