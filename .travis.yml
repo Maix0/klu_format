@@ -60,6 +60,7 @@ deploy:
     # for such targets and that's generated using the stable channel
     condition: $TRAVIS_RUST_VERSION = stable
     tags: false
+    branch: cli
   provider: releases
   skip_cleanup: true
 
