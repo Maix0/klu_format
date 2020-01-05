@@ -1,135 +1,56 @@
-# Based on the "trust" template v0.1.2
-# https://github.com/japaric/trust/tree/v0.1.2
-
 dist: trusty
 language: rust
 services: docker
 sudo: required
-
-# TODO Rust builds on stable by default, this can be
-# overridden on a case by case basis down below.
-
 env:
   global:
-    # TODO Update this to match the name of your project.
-    - CRATE_NAME=klu
-
+  - CRATE_NAME=klu
 matrix:
-  # TODO These are all the build jobs. Adjust as necessary. Comment out what you
-  # don't need
   include:
-    # Android
-    #- env: TARGET=aarch64-linux-android DISABLE_TESTS=1
-    #- env: TARGET=arm-linux-androideabi DISABLE_TESTS=1
-    #- env: TARGET=armv7-linux-androideabi DISABLE_TESTS=1
-    #- env: TARGET=i686-linux-android DISABLE_TESTS=1
-    #- env: TARGET=x86_64-linux-android DISABLE_TESTS=1
-
-    # iOS
-    - env: TARGET=aarch64-apple-ios DISABLE_TESTS=1
-      os: osx
-    - env: TARGET=armv7-apple-ios DISABLE_TESTS=1
-      os: osx
-    - env: TARGET=armv7s-apple-ios DISABLE_TESTS=1
-      os: osx
-    - env: TARGET=i386-apple-ios DISABLE_TESTS=1
-      os: osx
-    - env: TARGET=x86_64-apple-ios DISABLE_TESTS=1
-      os: osx
-
-    # Linux
-    - env: TARGET=aarch64-unknown-linux-gnu
-    - env: TARGET=arm-unknown-linux-gnueabi
-    - env: TARGET=armv7-unknown-linux-gnueabihf
-    - env: TARGET=i686-unknown-linux-gnu
-    - env: TARGET=i686-unknown-linux-musl
-    - env: TARGET=mips-unknown-linux-gnu
-    - env: TARGET=mips64-unknown-linux-gnuabi64
-    - env: TARGET=mips64el-unknown-linux-gnuabi64
-    - env: TARGET=mipsel-unknown-linux-gnu
-    - env: TARGET=powerpc-unknown-linux-gnu
-    - env: TARGET=powerpc64-unknown-linux-gnu
-    - env: TARGET=powerpc64le-unknown-linux-gnu
-    - env: TARGET=s390x-unknown-linux-gnu DISABLE_TESTS=1
-    - env: TARGET=x86_64-unknown-linux-gnu
-    - env: TARGET=x86_64-unknown-linux-musl
-
-    # OSX
-    - env: TARGET=i686-apple-darwin
-      os: osx
-    - env: TARGET=x86_64-apple-darwin
-      os: osx
-
-    # *BSD
-    - env: TARGET=i686-unknown-freebsd DISABLE_TESTS=1
-    - env: TARGET=x86_64-unknown-freebsd DISABLE_TESTS=1
-    - env: TARGET=x86_64-unknown-netbsd DISABLE_TESTS=1
-
-    # Windows
-    - env: TARGET=x86_64-pc-windows-gnu
-
-    # Bare metal
-    # These targets don't support std and as such are likely not suitable for
-    # most crates.
-    # - env: TARGET=thumbv6m-none-eabi
-    # - env: TARGET=thumbv7em-none-eabi
-    # - env: TARGET=thumbv7em-none-eabihf
-    # - env: TARGET=thumbv7m-none-eabi
-
-    # Testing other channels
-    - env: TARGET=x86_64-unknown-linux-gnu
-      rust: nightly
-    - env: TARGET=x86_64-apple-darwin
-      os: osx
-      rust: nightly
-
-before_install:
-  - set -e
-  - rustup self update
-
-install:
-  - sh ci/install.sh
-  - source ~/.cargo/env || true
-
-script:
-  - bash ci/script.sh
-
-after_script: set +e
-
-before_deploy:
-  - sh ci/before_deploy.sh
-
-deploy:
-  # TODO update `api_key.secure`
-  # - Create a `public_repo` GitHub token. Go to: https://github.com/settings/tokens/new
-  # - Encrypt it: `travis encrypt 0123456789012345678901234567890123456789
-  # - Paste the output down here
-  api_key:
-    securetrav:  geR/TJWgkq3JXPaTKFgRsn1JEjqJmE7SaJm5dO5+Ip3Kw/Pl7nWzEI8Z+XMEhonm513uP2XgTK8YaQu5G0MpeHPTD7T6D9q7pVOx0Wp30CjKPOhvDMuW8PCB807NsdonHJseWtwagqOpKPO9x+giqokKeXPjvlItIeSNuoyy0LbAXPKsp+OfLV2ebE8+D/Rv9u4Eo0UPDRU8ySixztW9STdwnX1EIR7i0ADgWUxYhUc+oZaBU7+SGO/7f0/rD364FVenBfFS0AQ0MV5AvhKe9GgUvhMH3oUEjbmKSlWz8aHEHAKQU3uunTwiVZykhcqD8IVKGXHIfmQhbxYOH3+lp0qUC6L2G3jaQz9NpvzTHRZg3YsRD2LOxkK4B7l6H6HAllrPblsK84nMzF5/pi8M/jaWuWh2KaCgetl5+uPa9bEJ0qY1mWrFhCth4d+Kt2NVhlBZmMJ/io+9t+F+mqP2wjtZmJ0B6Bl/0rcATxpzVngnhDMSXQSLb7aqtt+JU8auOqKlbgiv5HiQWJZqSEEZDbPp6VfKoDQ0lg2NEEKt4Rc+Q7rCluD4YRDvtOWgTaOfqVvfTVQkRAk5AC2HhrLhBUb3RIHGaoFU87mCxphrjAD3XUcVfHmZxhYT6KijxPsKWwcbjXOT4jIV6+WQ89+7jlZGmwooRXrXQ+2Ph6qL2FE=
+  - env: TARGET=x86_64-unknown-linux-gnu 
+  - env: TARGET=x86_64-apple-darwin
+    os: osx
+  - env: TARGET=x86_64-pc-windows-gnu
   
-  file_glob: true
-  file: $CRATE_NAME-$TRAVIS_TAG-$TARGET.*
-  on:
-    # TODO Here you can pick which targets will generate binary releases
-    # In this example, there are some targets that are tested using the stable
-    # and nightly channels. This condition makes sure there is only one release
-    # for such targets and that's generated using the stable channel
-    condition: $TRAVIS_RUST_VERSION = stable
-    tags: true
-  provider: releases
-  skip_cleanup: true
-
+  - env: TARGET=i386-unknown-linux-gnu 
+  - env: TARGET=i386-apple-darwin
+    os: osx
+  - env: TARGET=i386-pc-windows-gnu
+  
+  - env: TARGET=x86_64-unknown-linux-gnu
+    rust: nightly
+  - env: TARGET=x86_64-apple-darwin
+    os: osx
+    rust: nightly
+before_install:
+- set -e
+- rustup self update
+install:
+- sh ci/install.sh
+- source ~/.cargo/env || true
+script:
+- bash ci/script.sh
+after_script: set +e
+before_deploy:
+- sh ci/before_deploy.sh
 cache: cargo
 before_cache:
-  # Travis can't cache files that are not readable by "others"
-  - chmod -R a+r $HOME/.cargo
-
+- chmod -R a+r $HOME/.cargo
 branches:
   only:
-    # release tags
-    - /^v\d+\.\d+\.\d+.*$/
-    - cli
-
+  - "/^v\\d+\\.\\d+\\.\\d+.*$/"
+  - cli
 notifications:
   email:
     on_success: never
+deploy:
+  provider: releases
+  api_key:
+    secure: ShWhw0FbxlTCh4N9n61zEXb+AN35oinZDn3aJI9ZNuVU4+fdg2EF45XP7sYPoSjkXiK1DpHAoFix0AJCXhdTAEFazXLkFDNDhcItMNbwL0r9/ctjE8g0VkGfOJFgDIGYcwyJggdR3D92e5osVwDd9DT/fr2EI3IquUwbWRhvZ2VyBKrfyj/ObhhwLkNGRPm761mypSEzwoBwKOlm4xePgfyRYD51oMq6nzAj7m8mY4Lhg2kVvI+Sb7qQOHwbF835SwA9P0uQe/c0EzpzTTji8guOtqrY+8ImEt7PzMin0ZnYusJvwgz12IynNjjypLvLXFAtHG99XKVqaS/Q+2w7a/ZQoL9RP1vGMbwPR5BdsG3MOhxbjdamDAA80NOPw5XgcQ3ZWuLog/HuabCNSNObGcKlzzIouIBstDEr3gFdB5imPwnOybRSsriy67H/bxJPmvPkdo1lvlX4+BLKuGTRj2x7w2LLZux/VDCmKuDmqI6sEgOyFUWg1sck05MgM8lVvJjPptD+6xSFVQt+4t0GYTbQ7WuVjKXOznaYfaENl+YHvsaDnJf7gLgMflU43b8eHKqw+91SJljmuXCAbIQwv19hN2ix4cAUCW/AHwnoAbAmCvDhyzvPa8mYmRKmmwniqI7QEL89x7uWWKpI/FSKPvvqm/KgNQBg2+D3cZUjKow=
+  file_glob: true
+  file: $CRATE_NAME-$TRAVIS_TAG-$TARGET.*
+  on:
+    condition: $TRAVIS_RUST_VERSION = stable
+    # repo: Maix0/klu_format
+    branch: cli
+  skip_cleanup: true 
