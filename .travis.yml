@@ -7,10 +7,7 @@ env:
   - CRATE_NAME=klu
 matrix:
   include:
-    #- env: TARGET=i686-unknown-linux-gnu
-    #- env: TARGET=i686-unknown-linux-musl
   - env: TARGET=x86_64-unknown-linux-musl
-    #- env: TARGET=i686-apple-darwin
     os: osx
   - env: TARGET=x86_64-apple-darwin
     os: osx
@@ -31,39 +28,6 @@ script:
 after_script: set +e
 before_deploy:
 - sh ci/before_deploy.sh
-  # deploy:
-  # provider: releases
-  # api_key:
-  #  secure: s5DgEdnU76NXz09MULwlVnGvrYzul1fGA3PPjLSlzFg1CraONGR+LgqWHMSyzoKHHU4bEdlLL2zQNG7U842CkKKD+0IK9BmMMzq5/rjcAn+AqHYqddRQ96OjoArkr+LB/ZJBxmGYAl9LU8gffk5tDg5q3a6oQrSEDbZmU7Y2If4pEs0yZLGHJnyp5Vxk1dqYKfHHJihvEKUV4wuz8tzRIk3GER+gdmatvxkWV6VZiqtcLuZqaYsjz0vxk+cY8WNIVAhedy5DZmEtVMlGvLA1kXPECZi8PfxZ1cTIoCAL467RFRAjA3HdEGNcH+AJ3oXyvlZ3x3cmMnduh47On8VQH6PU4yDHgq4Ejm130R/sVo8YPZmL1/c/iv+Q0k4Pbeggw6J2ReulfY6V7qPTwG0p0GHRPrgnsLd2MTU9Z/MPOW8vwbOTm96Lao5HKFbRWzPCfuadgDHQLb3BWipMZZ9ldI9iCjH9m3rdRgqEr4iUmREBEkTNzJkrytQOCb8fkT6PU4dpR0DzkK6fYJH+1kk2upQRmFtvtT9fqPxBy7jwAUPp031kYNlAmVZzoIFjuDTJvJIBGY8WLplhp4aTefkyLu4ZJN0EN/F1mEOF2kFtB7ONbJc8xcU98qgFCNA/JM946qKDLKBkg7ZUMwD5tPRxVV98NiUmOL5iAHFIlOseVpg=
-  #  file_glob: true
-  #  file: $CRATE_NAME-$TRAVIS_TAG-$TARGET.*
-  #  on:
-  #    condition: $TRAVIS_RUST_VERSION = stable
-  #   tags:false
-  #    repo: Maix0/klu_format
-  #   branch: cli
-  #  skip_cleanup: true
-deploy:
-  # TODO update `api_key.secure`
-  # - Create a `public_repo` GitHub token. Go to: https://github.com/settings/tokens/new
-  # - Encrypt it: `travis encrypt 0123456789012345678901234567890123456789
-  # - Paste the output down here
-  api_key:
-    secure: s5DgEdnU76NXz09MULwlVnGvrYzul1fGA3PPjLSlzFg1CraONGR+LgqWHMSyzoKHHU4bEdlLL2zQNG7U842CkKKD+0IK9BmMMzq5/rjcAn+AqHYqddRQ96OjoArkr+LB/ZJBxmGYAl9LU8gffk5tDg5q3a6oQrSEDbZmU7Y2If4pEs0yZLGHJnyp5Vxk1dqYKfHHJihvEKUV4wuz8tzRIk3GER+gdmatvxkWV6VZiqtcLuZqaYsjz0vxk+cY8WNIVAhedy5DZmEtVMlGvLA1kXPECZi8PfxZ1cTIoCAL467RFRAjA3HdEGNcH+AJ3oXyvlZ3x3cmMnduh47On8VQH6PU4yDHgq4Ejm130R/sVo8YPZmL1/c/iv+Q0k4Pbeggw6J2ReulfY6V7qPTwG0p0GHRPrgnsLd2MTU9Z/MPOW8vwbOTm96Lao5HKFbRWzPCfuadgDHQLb3BWipMZZ9ldI9iCjH9m3rdRgqEr4iUmREBEkTNzJkrytQOCb8fkT6PU4dpR0DzkK6fYJH+1kk2upQRmFtvtT9fqPxBy7jwAUPp031kYNlAmVZzoIFjuDTJvJIBGY8WLplhp4aTefkyLu4ZJN0EN/F1mEOF2kFtB7ONbJc8xcU98qgFCNA/JM946qKDLKBkg7ZUMwD5tPRxVV98NiUmOL5iAHFIlOseVpg=
-  
-  file_glob: true
-  file: $CRATE_NAME-$TRAVIS_TAG-$TARGET.*
-  on:
-    # TODO Here you can pick which targets will generate binary releases
-    # In this example, there are some targets that are tested using the stable
-    # and nightly channels. This condition makes sure there is only one release
-    # for such targets and that's generated using the stable channel
-    condition: $TRAVIS_RUST_VERSION = stable
-    tags: false
-    branch: cli
-  provider: releases
-  skip_cleanup: true
-
 cache: cargo
 before_cache:
 - chmod -R a+r $HOME/.cargo
@@ -74,3 +38,16 @@ branches:
 notifications:
   email:
     on_success: never
+deploy:
+  provider: releases
+  api_key:
+    secure: PO7xG8Q9aPiHjyhFWxKHgEmRw3qT0jFimTNMrcXsG0ybFz+ugs/GO//AGh9f8Cmnqoim65omUAJBzt9NtD/B8i12EHMQVvHh26ytQ4KKpzpCOnPwkWQxmQfER1dvJF8rTVFHT+tqkg1JyRApj3iJ7FHXgahotm3VYy8929F8gI/OOM9IDr69ZmK2qpztvB3oZZuFDnq0QMUrFdyNo4DqE1pBZOcUowXD6NR7gxmXg8sLHpbwb5ZVgT4PeG/dN1z/kR2inkG1dvW8G3U3bi8mzifRqLXz3XnB/9Q4a3Khme95nlz6CbtuNg9w7S7nZC1azPBSny81f1VK+lJcdKjPKJLenuPA1F9z/tx4YyMWQDRTLPhaOzU8gs1dqOGQCeiueWmf3fHX4M+YCfv/quSMaV2LYHIwlIxEFi05NUyONKtYFutO7NqjMHtuATjBh7voB5ND55vCfhJ7Mjf/vKgbmEnbsFqOG8sYFzaQlNHA4BJTCsA+NKw2o0oFH2dVTBqaTeAvWg6gQyQ2co47HjoEs1dDPPMg4X+d5fWuFlCxvoN3gekH0TnURs6Y0g7ykVg0wSy39y9vzFF+9LVV1Mu4Re8LLEQvn4GXxjQPF5LgtruWGYk4ltUlOlhhc1GfB/qOBEnm/6XufaVFHo8rWlgOBD38lExPEwZBmTEEn06KWBM=
+  file: $CRATE_NAME-$TRAVIS_TAG-$TARGET.*
+  on:
+    condition: $TRAVIS_RUST_VERSION = stable
+    repo: Maix0/klu_format
+    branch: cli
+    tags: false
+  skip_cleanup:true
+  file_glob:true
+
