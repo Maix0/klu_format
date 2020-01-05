@@ -41,13 +41,12 @@ notifications:
 deploy:
   provider: releases
   api_key:
-    secure: PO7xG8Q9aPiHjyhFWxKHgEmRw3qT0jFimTNMrcXsG0ybFz+ugs/GO//AGh9f8Cmnqoim65omUAJBzt9NtD/B8i12EHMQVvHh26ytQ4KKpzpCOnPwkWQxmQfER1dvJF8rTVFHT+tqkg1JyRApj3iJ7FHXgahotm3VYy8929F8gI/OOM9IDr69ZmK2qpztvB3oZZuFDnq0QMUrFdyNo4DqE1pBZOcUowXD6NR7gxmXg8sLHpbwb5ZVgT4PeG/dN1z/kR2inkG1dvW8G3U3bi8mzifRqLXz3XnB/9Q4a3Khme95nlz6CbtuNg9w7S7nZC1azPBSny81f1VK+lJcdKjPKJLenuPA1F9z/tx4YyMWQDRTLPhaOzU8gs1dqOGQCeiueWmf3fHX4M+YCfv/quSMaV2LYHIwlIxEFi05NUyONKtYFutO7NqjMHtuATjBh7voB5ND55vCfhJ7Mjf/vKgbmEnbsFqOG8sYFzaQlNHA4BJTCsA+NKw2o0oFH2dVTBqaTeAvWg6gQyQ2co47HjoEs1dDPPMg4X+d5fWuFlCxvoN3gekH0TnURs6Y0g7ykVg0wSy39y9vzFF+9LVV1Mu4Re8LLEQvn4GXxjQPF5LgtruWGYk4ltUlOlhhc1GfB/qOBEnm/6XufaVFHo8rWlgOBD38lExPEwZBmTEEn06KWBM=
+    secure: ShWhw0FbxlTCh4N9n61zEXb+AN35oinZDn3aJI9ZNuVU4+fdg2EF45XP7sYPoSjkXiK1DpHAoFix0AJCXhdTAEFazXLkFDNDhcItMNbwL0r9/ctjE8g0VkGfOJFgDIGYcwyJggdR3D92e5osVwDd9DT/fr2EI3IquUwbWRhvZ2VyBKrfyj/ObhhwLkNGRPm761mypSEzwoBwKOlm4xePgfyRYD51oMq6nzAj7m8mY4Lhg2kVvI+Sb7qQOHwbF835SwA9P0uQe/c0EzpzTTji8guOtqrY+8ImEt7PzMin0ZnYusJvwgz12IynNjjypLvLXFAtHG99XKVqaS/Q+2w7a/ZQoL9RP1vGMbwPR5BdsG3MOhxbjdamDAA80NOPw5XgcQ3ZWuLog/HuabCNSNObGcKlzzIouIBstDEr3gFdB5imPwnOybRSsriy67H/bxJPmvPkdo1lvlX4+BLKuGTRj2x7w2LLZux/VDCmKuDmqI6sEgOyFUWg1sck05MgM8lVvJjPptD+6xSFVQt+4t0GYTbQ7WuVjKXOznaYfaENl+YHvsaDnJf7gLgMflU43b8eHKqw+91SJljmuXCAbIQwv19hN2ix4cAUCW/AHwnoAbAmCvDhyzvPa8mYmRKmmwniqI7QEL89x7uWWKpI/FSKPvvqm/KgNQBg2+D3cZUjKow=
+  file_glob: true
   file: $CRATE_NAME-$TRAVIS_TAG-$TARGET.*
   on:
-    condition: $TRAVIS_RUST_VERSION = stable
+    condition: $RUST_VERSION = stable
     repo: Maix0/klu_format
     branch: cli
     tags: false
-  skip_cleanup: true
-  file_glob: true
-
+  skip_cleanup: true 
