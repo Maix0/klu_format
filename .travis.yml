@@ -11,6 +11,12 @@ matrix:
   - env: TARGET=x86_64-apple-darwin
     os: osx
   - env: TARGET=x86_64-pc-windows-gnu
+  
+  - env: TARGET=i386-unknown-linux-gnu 
+  - env: TARGET=i386-apple-darwin
+    os: osx
+  - env: TARGET=i386-pc-windows-gnu
+  
   - env: TARGET=x86_64-unknown-linux-gnu
     rust: nightly
   - env: TARGET=x86_64-apple-darwin
@@ -46,5 +52,6 @@ deploy:
   on:
     condition: $TRAVIS_RUST_VERSION = stable
     # repo: Maix0/klu_format
+    tags: true
     branch: cli
   skip_cleanup: true 
