@@ -8,4 +8,4 @@ edition = "2018"
 [dependencies]
 
 [dev-dependencies]
-image = "*"
+image = "0.22.3"
