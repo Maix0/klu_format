@@ -7,7 +7,7 @@ env:
   - CRATE_NAME=klu
 matrix:
   include:
-  - env: TARGET=x86_64-unknown-linux-musl
+  - env: TARGET=x86_64-unknown-linux-gnu 
     os: osx
   - env: TARGET=x86_64-apple-darwin
     os: osx
@@ -48,5 +48,4 @@ deploy:
     condition: $RUST_VERSION = stable
     repo: Maix0/klu_format
     branch: cli
-    tags: false
   skip_cleanup: true 
