@@ -4,15 +4,15 @@ set -ex
 
 # TODO This is the "test phase", tweak it as you see fit
 main() {
-    cross build --target $TARGET -- --version
-    cross build --target $TARGET --release -- --version
+    cross build --target $TARGET #-- #--version
+    cross build --target $TARGET --release #-- --version
 
     if [ ! -z $DISABLE_TESTS ]; then
         return
     fi
 
-    cross test --target $TARGET -- --version
-    cross test --target $TARGET --release -- --version
+    cross test --target $TARGET #-- #--version
+    cross test --target $TARGET --release #-- --version
 
     cross run --target $TARGET -- --version
     cross run --target $TARGET --release -- --version
