@@ -12,10 +12,10 @@ matrix:
     os: osx
   - env: TARGET=x86_64-pc-windows-gnu
   
-  - env: TARGET=i386-unknown-linux-gnu 
-  - env: TARGET=i386-apple-darwin
+  - env: TARGET=i686-unknown-linux-gnu 
+  - env: TARGET=i686-apple-darwin
     os: osx
-  - env: TARGET=i386-pc-windows-gnu
+  - env: TARGET=6386-pc-windows-gnu
   
   - env: TARGET=x86_64-unknown-linux-gnu
     rust: nightly
@@ -40,6 +40,7 @@ branches:
   only:
   - "/^v\\d+\\.\\d+\\.\\d+.*$/"
   - cli
+  - dev/cli
 notifications:
   email:
     on_success: never
