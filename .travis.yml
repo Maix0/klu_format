@@ -36,13 +36,13 @@ deploy:
   api_key:
     secure: s5DgEdnU76NXz09MULwlVnGvrYzul1fGA3PPjLSlzFg1CraONGR+LgqWHMSyzoKHHU4bEdlLL2zQNG7U842CkKKD+0IK9BmMMzq5/rjcAn+AqHYqddRQ96OjoArkr+LB/ZJBxmGYAl9LU8gffk5tDg5q3a6oQrSEDbZmU7Y2If4pEs0yZLGHJnyp5Vxk1dqYKfHHJihvEKUV4wuz8tzRIk3GER+gdmatvxkWV6VZiqtcLuZqaYsjz0vxk+cY8WNIVAhedy5DZmEtVMlGvLA1kXPECZi8PfxZ1cTIoCAL467RFRAjA3HdEGNcH+AJ3oXyvlZ3x3cmMnduh47On8VQH6PU4yDHgq4Ejm130R/sVo8YPZmL1/c/iv+Q0k4Pbeggw6J2ReulfY6V7qPTwG0p0GHRPrgnsLd2MTU9Z/MPOW8vwbOTm96Lao5HKFbRWzPCfuadgDHQLb3BWipMZZ9ldI9iCjH9m3rdRgqEr4iUmREBEkTNzJkrytQOCb8fkT6PU4dpR0DzkK6fYJH+1kk2upQRmFtvtT9fqPxBy7jwAUPp031kYNlAmVZzoIFjuDTJvJIBGY8WLplhp4aTefkyLu4ZJN0EN/F1mEOF2kFtB7ONbJc8xcU98qgFCNA/JM946qKDLKBkg7ZUMwD5tPRxVV98NiUmOL5iAHFIlOseVpg=
   file_glob: true
-  file: "$CRATE_NAME-$TRAVIS_TAG-$TARGET.*"
+  file: $CRATE_NAME-$TRAVIS_TAG-$TARGET.*
   on:
-    condition: "$TRAVIS_RUST_VERSION = stable"
+    condition: $TRAVIS_RUST_VERSION = stable
     tags:false
     repo: Maix0/klu_format
     branch: cli
-  skip_cleanup:true
+  skip_cleanup: true
 cache: cargo
 before_cache:
 - chmod -R a+r $HOME/.cargo
