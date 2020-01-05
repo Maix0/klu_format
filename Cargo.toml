@@ -1,5 +1,5 @@
 [package]
-name = "klu"
+name = "klu_core"
 version = "0.1.0"
 authors = ["maix0 <maix522@gmail.com>"]
 edition = "2018"

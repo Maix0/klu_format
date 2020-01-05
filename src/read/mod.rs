@@ -153,9 +153,6 @@ impl File {
 // Things that help the user, like locating a file with his path...
 /// User's function for using an [Archive]
 impl Archive {
-    /*pub fn get_file_at<P: AsRef<Path>>(path: P) -> Option<File> {
-        for
-    }*/
     pub fn release<P: AsRef<Path>>(&mut self, path: P) {
         if !path.as_ref().exists() {
             panic!("Given path does not exist")
@@ -165,6 +162,24 @@ impl Archive {
             panic!("Path where archive will be released already exist");
         }
         self.file.write_to_path(&mut self.buffer, path);
+    }
+
+    pub fn paths(self) -> Vec<String> {
+        let mut p = Vec::new();
+        p.push(format!(
+            "{}{}",
+            self.file.filename,
+            if self.file.is_file { "" } else { "/" }
+        ));
+        self.file.paths(
+            &mut p,
+            format!(
+                "{}{}",
+                self.file.filename,
+                if self.file.is_file { "" } else { "/" }
+            ),
+        );
+        p
     }
 
     pub fn get_virtual<P: AsRef<Path>>(&mut self, path: P) -> Option<VirtualFile> {
@@ -218,6 +233,16 @@ impl File {
             std::fs::create_dir(&output).expect("Error while creating a dir");
             for child in &self.child {
                 child.write_to_path(archive, output.as_ref().join(child.filename.clone()));
+            }
+        }
+    }
+    fn paths(&self, v: &mut Vec<String>, base: String) {
+        for file in &self.child {
+            if !file.is_file {
+                v.push(format!("{}{}/", base, file.filename));
+                file.paths(v, format!("{}{}/", base, file.filename));
+            } else {
+                v.push(format!("{}{}", base, file.filename));
             }
         }
     }
