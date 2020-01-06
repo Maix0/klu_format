@@ -186,6 +186,7 @@ impl Archive {
         p
     }
 
+    #[cfg(feature = "virtual_fs")]
     pub fn get_virtual<P: AsRef<Path>>(&mut self, path: P) -> Option<VirtualFile> {
         let sizes = match self.get_with_path(path) {
             Some(f) => Some((f.relative_offset as usize, f.filesize as usize)),
@@ -251,6 +252,8 @@ impl File {
         }
     }
 }
+
+#[cfg(feature = "virtual_fs")]
 #[derive(Debug)]
 pub struct VirtualFile<'a> {
     buffer: &'a mut std::io::BufReader<std::fs::File>,
@@ -258,6 +261,7 @@ pub struct VirtualFile<'a> {
     end_offset: usize,
     current_offset: usize,
 }
+#[cfg(feature = "virtual_fs")]
 impl<'a> VirtualFile<'a> {
     /*
     fn from_file(f: &File, b: &'a mut std::io::BufReader<std::fs::File>) -> Self {
@@ -278,6 +282,7 @@ impl<'a> VirtualFile<'a> {
     }
 }
 
+#[cfg(feature = "virtual_fs")]
 impl<'a> Read for VirtualFile<'a> {
     fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
         self.buffer.seek(std::io::SeekFrom::Start(
@@ -299,6 +304,7 @@ impl<'a> Read for VirtualFile<'a> {
     }
 }
 //Os { code: 22, kind: InvalidInput, message: "Invalid argument" }
+#[cfg(feature = "virtual_fs")]
 
 impl<'a> Seek for VirtualFile<'a> {
     fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
@@ -343,6 +349,7 @@ impl<'a> Seek for VirtualFile<'a> {
         Ok(self.current_offset as u64)
     }
 }
+#[cfg(feature = "virtual_fs")]
 
 impl<'a> BufRead for VirtualFile<'a> {
     fn fill_buf(&mut self) -> std::io::Result<&[u8]> {
