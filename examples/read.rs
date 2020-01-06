@@ -1,5 +1,6 @@
-extern crate klu;
+extern crate klu_core;
 fn main() {
-    let mut archive = klu::read::Archive::from_path("./test/archive.klu");
-    archive.release("./test/out");
+    let mut archive =
+        klu_core::read::Archive::from_path("./test/archive.klu").expect("Read archive error");
+    archive.release("./test/out").expect("Release error");
 }

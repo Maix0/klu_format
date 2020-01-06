@@ -43,35 +43,54 @@ pub struct Archive {
     file: File,
 }
 
+pub type WriteResult<T> = Result<T,WriteError>;
+
+#[derive(Debug)]
+pub enum WriteError {
+    IoError(std::io::Error),
+    InvalidInput(Filename)
+}
+
+#[derive(Debug)]
+pub enum Filename {
+    NotUTF8(String),
+    TooLong(String),
+    Inexistant(String)
+}
+
+impl std::convert::From<std::io::Error> for WriteError {
+    fn from(err: std::io::Error) -> Self{
+        Self::IoError(err)
+    }
+}
+
 impl Archive {
     /// The 4 bytes at the start of any archive
     const ID: [u8; 4] = *b"KLU\x00";
     /// Create an archive from the path
-    pub fn from_path<P:AsRef<Path>>(path: P) -> Self {
-        let file = File::from_path(path);
+    pub fn from_path<P:AsRef<Path>>(path: P) -> WriteResult<Self> {
+        let file = File::from_path(path)?;
         let filesize =  Self::ID.len() as u64 + 
                         8 /* headersize */ + 
                         8 /* filesize */ + 
                         file.header_len() as u64 + file.filesize;
-        Archive {
+        Ok(Archive {
             headersize: file.header_len() as u64,
             filesize: filesize,
             file: file,
-        }
+        })
     }
     ///Write archive to file at given path. Will create a new file or truncate it if allready
     ///existing
-    pub fn write_to_path<P:AsRef<Path>>(&self, path : P) {
-        let out_file = std::fs::File::create(path)
-            .expect("Couldn't create/truncate archive file");
+    pub fn write_to_path<P:AsRef<Path>>(&self, path : P) -> WriteResult<()> {
+        let out_file = std::fs::File::create(path)?;
         let mut buffer = std::io::BufWriter::new(out_file);
-        buffer.write(&Self::ID).expect("Error while writing ID bytes to buffer");
-        buffer.write(&utils::u64_to_slice(self.headersize)).
-            expect("Error while writing header_size to buffer");
-        buffer.write(&utils::u64_to_slice(self.filesize)).
-            expect("Error while writing file_size to buffer");
-        buffer.write(&self.file.header()).expect("Error while writing main file to buffer");
-        self.file.write_to_buf(&mut buffer);
+        buffer.write(&Self::ID)?;
+        buffer.write(&utils::u64_to_slice(self.headersize))?;
+        buffer.write(&utils::u64_to_slice(self.filesize))?;
+        buffer.write(&self.file.header())?;
+        self.file.write_to_buf(&mut buffer)?;
+        Ok(())
     } 
 }
 
@@ -100,65 +119,64 @@ impl File {
     }
     /// Write file to given buffer, needs to be a mutable reference because it 
     /// will be given to file's children an so on;
-    pub fn write_to_buf<W:Write>(&self, buffer: &mut std::io::BufWriter<W>) {
+    pub fn write_to_buf<W:Write>(&self, buffer: &mut std::io::BufWriter<W>) -> WriteResult<()>{
         if self.is_file {
-            let mut reader = std::io::BufReader::new(std::fs::File::open(&self.path)
-                .expect("Can't open file for writing archive"));
-            std::io::copy(&mut reader,buffer)
-                .expect("Error while copying file onto the archive");
-            buffer.flush().expect("Error while flushing buffer");
+            let mut reader = std::io::BufReader::new(std::fs::File::open(&self.path)?);
+            std::io::copy(&mut reader,buffer)?;
+            buffer.flush()?;
         } else {
             let mut headersize = 0;
             for c in &self.childs {
                 headersize += c.header_len() as u64;
             }
-            buffer.write(&utils::u64_to_slice(headersize))
-                .expect("Error while writing to buffer");
+            buffer.write(&utils::u64_to_slice(headersize))?;
             for c in &self.childs {   
-                buffer.write(&c.header())
-                    .expect("Error while writing to buffer");
+                buffer.write(&c.header())?;
             }
             for c in &self.childs {
-                c.write_to_buf(buffer);
+                c.write_to_buf(buffer)?;
             }
         }
+        Ok(())
     }
 
     /// Create a [File] from a [PathBuf], will populate childs if needed
-    pub fn from_path<P:AsRef<Path>>(path: P) -> Self {
+    pub fn from_path<P:AsRef<Path>>(path: P) -> WriteResult<Self> {
         let path = path.as_ref()
-            .canonicalize()
-            .expect("Error while canonicalizing the path");
+            .canonicalize()?;
         let md = path
-            .metadata()
-            .expect("Error while getting path's metadata");
+            .metadata()?;
         let mut filesize = if md.is_file() { md.len() } else { 8 };
         if let Some(fname) = path.file_name() {
             if None == fname.to_str() {
-                panic!(format!("Filename `{}` isn't valid UTF-8", path.display()));
+                return Err(WriteError::InvalidInput(Filename::NotUTF8(
+                            format!("Filename `{}` isn't valid UTF-8", path.display()))));
             }
             if fname.len() > 127 {
-                panic!(format!("Filename `{:?}` is longer than 127 chars", fname));
+                return Err(WriteError::InvalidInput(
+                        Filename::TooLong(
+                            format!("Filename `{:?}` is longer than 127 chars", fname)))); 
             }
         } else {
-            panic!(format!("Filename `{}` doesn't exist", path.display()));
+            return Err(WriteError::InvalidInput(Filename::Inexistant(
+                        format!("Filename `{}` doesn't exist", path.display()))));
         }
         let mut childs = Vec::new();
         if md.is_dir() {
-            for dir in path.read_dir().unwrap() {
+            for dir in path.read_dir()? {
                 if let Ok(child) = dir {
-                    let child_file = Self::from_path(child.path());
+                    let child_file = Self::from_path(child.path())?;
                     filesize += child_file.header_len() as u64 + child_file.filesize;
                     childs.push(child_file);
                 }
             }
         }
-        File {
+        Ok(File {
             filesize: filesize,
             is_file: md.is_file(),
             filename: path.file_name().unwrap().to_str().unwrap().to_owned(),
             path: path,
             childs: childs,
-        }
+        })
     }
 }

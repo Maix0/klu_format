@@ -37,6 +37,21 @@ mod utils;
 use std::io::prelude::*;
 use std::path::Path;
 
+pub type ReadResult<T> = Result<T, ReadError>;
+
+#[derive(Debug)]
+pub enum ReadError {
+    IoError(std::io::Error),
+    InvalidArchive,
+    InexistantArchive,
+}
+
+impl std::convert::From<std::io::Error> for ReadError {
+    fn from(err: std::io::Error) -> Self {
+        Self::IoError(err)
+    }
+}
+
 #[derive(Debug)]
 pub struct Archive {
     file: File,
@@ -48,28 +63,24 @@ pub struct Archive {
 impl Archive {
     pub const ID: [u8; 4] = *b"KLU\x00";
 
-    pub fn from_path<P: AsRef<Path>>(path: P) -> Self {
-        let mut f = std::io::BufReader::new(
-            std::fs::File::open(path).expect("Error while opening archive"),
-        );
+    pub fn from_path<P: AsRef<Path>>(path: P) -> ReadResult<Self> {
+        let mut f = std::io::BufReader::new(std::fs::File::open(path)?);
         let mut buffer = vec![0x00; 4 + 8 + 8];
-        f.read(&mut buffer)
-            .expect("Error while reading archive defining bytes");
+        f.read(&mut buffer)?;
         if buffer[0..4] != Self::ID {
-            panic!("File isn't a valid archive");
+            return Err(ReadError::InvalidArchive);
         }
         let headersize = utils::slice_to_u64(&buffer[4..(4 + 8)]);
         let filesize = utils::slice_to_u64(&buffer[(4 + 8)..(4 + 8 + 8)]);
         buffer = vec![0; headersize as usize];
-        f.read(&mut buffer)
-            .expect("Error while reading main file header");
+        f.read(&mut buffer)?;
 
-        Archive {
-            file: File::from_header(&buffer, &mut f, 4 + 8 + 8 + headersize),
+        Ok(Archive {
+            file: File::from_header(&buffer, &mut f, 4 + 8 + 8 + headersize)?,
             buffer: f,
             headersize,
             filesize,
-        }
+        })
     }
     pub fn path_exist<P: AsRef<Path>>(&mut self, path: P) -> bool {
         match self.get_with_path(path) {
@@ -119,49 +130,42 @@ impl File {
         header: &[u8],
         r_buf: &mut std::io::BufReader<std::fs::File>,
         offset: u64,
-    ) -> Self {
+    ) -> ReadResult<Self> {
         let (flag, file_size, file_name) = utils::parse_header(header);
         let mut buffer = vec![0_u8; 8];
         let mut childs = Vec::new();
         if !flag {
-            r_buf
-                .read(&mut buffer)
-                .expect("Error while reading file's headersize");
+            r_buf.read(&mut buffer)?;
             let h_size = utils::slice_to_u64(&buffer);
             buffer = vec![0x00; h_size as usize];
-            r_buf
-                .read(&mut buffer)
-                .expect("Error while reading file's headers");
+            r_buf.read(&mut buffer)?;
             let mut current_offset = offset + 8 + h_size;
             while !buffer.is_empty() {
                 let c_header_size = (buffer[0] >> 1) as usize + 8 + 1;
                 let c_header = utils::split_in_place(&mut buffer, c_header_size);
-                let f = Self::from_header(&c_header, r_buf, current_offset);
+                let f = Self::from_header(&c_header, r_buf, current_offset)?;
                 current_offset += f.filesize;
                 childs.push(f);
             }
         }
-        File {
+        Ok(File {
             filename: file_name,
             filesize: file_size,
             is_file: flag,
             child: childs,
             relative_offset: offset,
-        }
+        })
     }
 }
 // Things that help the user, like locating a file with his path...
 /// User's function for using an [Archive]
 impl Archive {
-    pub fn release<P: AsRef<Path>>(&mut self, path: P) {
+    pub fn release<P: AsRef<Path>>(&mut self, path: P) -> ReadResult<()> {
         if !path.as_ref().exists() {
-            panic!("Given path does not exist")
+            return Err(ReadError::InexistantArchive);
         }
         let path = path.as_ref().join(self.file.filename.clone());
-        if path.exists() {
-            panic!("Path where archive will be released already exist");
-        }
-        self.file.write_to_path(&mut self.buffer, path);
+        self.file.write_to_path(&mut self.buffer, path)
     }
 
     pub fn paths(self) -> Vec<String> {
@@ -199,9 +203,10 @@ impl File {
         &self,
         archive: &mut std::io::BufReader<std::fs::File>,
         output: P,
-    ) {
+    ) -> ReadResult<()> {
         if self.is_file {
-            let mut file = std::fs::File::create(&output).expect("Error while creating file");
+            let mut file = std::fs::File::create(&output)?;
+
             let mut remaing = self.filesize;
             let mut buffer = vec![
                 0;
@@ -211,14 +216,10 @@ impl File {
                     remaing as usize
                 }
             ];
-            archive
-                .seek(std::io::SeekFrom::Start(self.relative_offset))
-                .expect("Error while setting read cursor at start of the file");
+            archive.seek(std::io::SeekFrom::Start(self.relative_offset))?;
             while remaing > 0 {
-                archive
-                    .read(&mut buffer)
-                    .expect("Error while reading out from the archive");
-                file.write(&buffer).expect("Error while writing to file");
+                archive.read(&mut buffer)?;
+                file.write(&buffer)?;
                 remaing -= buffer.len() as u64;
                 buffer = vec![
                     0;
@@ -230,11 +231,14 @@ impl File {
                 ];
             }
         } else {
-            std::fs::create_dir(&output).expect("Error while creating a dir");
+            if !output.as_ref().exists() {
+                std::fs::create_dir(&output)?;
+            }
             for child in &self.child {
-                child.write_to_path(archive, output.as_ref().join(child.filename.clone()));
+                child.write_to_path(archive, output.as_ref().join(child.filename.clone()))?;
             }
         }
+        Ok(())
     }
     fn paths(&self, v: &mut Vec<String>, base: String) {
         for file in &self.child {
@@ -342,8 +346,7 @@ impl<'a> Seek for VirtualFile<'a> {
 
 impl<'a> BufRead for VirtualFile<'a> {
     fn fill_buf(&mut self) -> std::io::Result<&[u8]> {
-        self.seek(std::io::SeekFrom::Start(self.current_offset as u64))
-            .expect("Error while reading VirtualFile");
+        self.seek(std::io::SeekFrom::Start(self.current_offset as u64))?;
         let mut buffer = self.buffer.fill_buf()?;
         let bytes_left = self.end_offset - self.start_offset - self.current_offset;
         let buffer_len = buffer.len();
