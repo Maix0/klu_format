@@ -43,12 +43,26 @@ pub type ReadResult<T> = Result<T, ReadError>;
 pub enum ReadError {
     IoError(std::io::Error),
     InvalidArchive,
-    InexistantArchive,
+    InexistantOut,
 }
 
 impl std::convert::From<std::io::Error> for ReadError {
     fn from(err: std::io::Error) -> Self {
         Self::IoError(err)
+    }
+}
+
+impl std::fmt::Display for ReadError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::IoError(e) => e.to_string(),
+                Self::InvalidArchive => "File isn't a valid archive".to_string(),
+                Self::InexistantOut => "Path given to release archive do not exist".to_string(),
+            }
+        )
     }
 }
 
@@ -162,7 +176,7 @@ impl File {
 impl Archive {
     pub fn release<P: AsRef<Path>>(&mut self, path: P) -> ReadResult<()> {
         if !path.as_ref().exists() {
-            return Err(ReadError::InexistantArchive);
+            return Err(ReadError::InexistantOut);
         }
         let path = path.as_ref().join(self.file.filename.clone());
         self.file.write_to_path(&mut self.buffer, path)

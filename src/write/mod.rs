@@ -63,6 +63,22 @@ impl std::convert::From<std::io::Error> for WriteError {
         Self::IoError(err)
     }
 }
+impl std::fmt::Display for WriteError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::IoError(e) => e.to_string(),
+                Self::InvalidInput(e) => format!("{}",match e {
+                    Filename::NotUTF8(s) => s,
+                    Filename::TooLong(s) => s,
+                    Filename::Inexistant(s) => s,
+                })
+            }
+        )
+    }
+}
 
 impl Archive {
     /// The 4 bytes at the start of any archive
