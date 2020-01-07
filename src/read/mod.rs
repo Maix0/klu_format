@@ -363,20 +363,3 @@ impl<'a> Seek for VirtualFile<'a> {
         Ok(self.current_offset as u64)
     }
 }
-#[cfg(feature = "virtual_fs")]
-
-impl<'a> BufRead for VirtualFile<'a> {
-    fn fill_buf(&mut self) -> std::io::Result<&[u8]> {
-        self.seek(std::io::SeekFrom::Start(self.current_offset as u64))?;
-        let mut buffer = self.buffer.fill_buf()?;
-        let bytes_left = self.end_offset - self.start_offset - self.current_offset;
-        let buffer_len = buffer.len();
-        if buffer_len > bytes_left {
-            buffer = &buffer[..bytes_left];
-        }
-        Ok(buffer)
-    }
-    fn consume(&mut self, amt: usize) {
-        self.current_offset += amt;
-    }
-}

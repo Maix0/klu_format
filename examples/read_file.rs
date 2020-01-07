@@ -1,30 +1,27 @@
 extern crate image;
-extern crate klu;
+extern crate klu_core;
 use std::io::prelude::*;
+#[cfg(feature = "virtual_fs")]
 fn main() {
-    let mut archive = klu::read::Archive::from_path("./test/archive.klu");
-    let mut reader = archive.get_virtual("in/testfile").unwrap();
+    let mut archive =
+        klu_core::read::Archive::from_path("./test/archive.klu").expect("Unable to open archive");
+    let mut reader = archive.get_virtual("archive/testfile").unwrap();
     let mut buffer = [0; 8];
     reader
         .read(&mut buffer)
         .expect("Error while reading in VirtualFile");
     assert_eq!(buffer, [0xFF, 0xEE, 0xDD, 0xCC, 0xBB, 0xAA, 0x99, 0x88]);
-    buffer = [0; 8];
-    let mut r1 = archive.get_virtual("in/backgroud.jpg").unwrap();
-    r1.read(&mut buffer).unwrap();
-    r1.seek(std::io::SeekFrom::Start(0)).unwrap();
-    assert_eq!(buffer, r1.fill_buf().unwrap()[..8]);
-    assert_eq!(buffer, [0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46]);
 
-    /* Retreave */
-    r1.seek(std::io::SeekFrom::Start(0)).unwrap();
-    let mut full_buf = Vec::new();
-    let mut buffer = vec![0; 8 * 1024];
-    let mut size = r1.read(&mut buffer).unwrap();
-    while size > 0 {
-        full_buf.extend_from_slice(&buffer[..size]);
-        size = r1.read(&mut buffer).unwrap();
+    let mut bufR = std::io::BufReader::new(archive.get_virtual("archive/image.jpg").unwrap());
+    let image = image::load(bufR, image::ImageFormat::JPEG).unwrap();
+    match image {
+        image::DynamicImage::ImageRgb8(img) => assert_eq!(img.dimensions(), (400, 345)),
+        _ => panic!("img format"),
     }
-    let img = image::load_from_memory(&full_buf[..]).unwrap();
-    img.save("test/saved_img.jpg").unwrap();
+    let mut bufR2 = std::io::BufReader::new(archive.get_virtual("archive/image.jpg").unwrap());
+}
+#[cfg(not(feature = "virtual_fs"))]
+fn main() {
+    println!("read_file exemple needs to run with the 'virtual_fs' feature");
+    println!("cargo run --examples read_file --features virtual_fs");
 }
