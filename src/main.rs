@@ -41,9 +41,15 @@ enum SubCmd {
 
 fn main() {
     let opt = Commands::from_args();
-    match opt.sub {
+    match match opt.sub {
         SubCmd::Extract { path, archive } => cmds::extract(path, archive),
         SubCmd::Pack { path, archive } => cmds::pack(path, archive),
         SubCmd::List { archive } => cmds::list(archive),
+    } {
+        Ok(_) => (),
+        Err(e) => {
+            structopt::clap::Error::with_description(&e, structopt::clap::ErrorKind::InvalidValue)
+                .exit();
+        }
     }
 }
