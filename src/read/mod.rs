@@ -71,7 +71,7 @@ pub struct Archive {
     file: File,
     headersize: u64,
     filesize: u64,
-    buffer: std::io::BufReader<std::fs::File>,
+    buffer: std::rc::Rc<std::cell::RefCell<std::io::BufReader<std::fs::File>>>,
 }
 
 impl Archive {
@@ -91,7 +91,7 @@ impl Archive {
 
         Ok(Archive {
             file: File::from_header(&buffer, &mut f, 4 + 8 + 8 + headersize)?,
-            buffer: f,
+            buffer: std::rc::Rc::new(std::cell::RefCell::new(f)),
             headersize,
             filesize,
         })
@@ -179,7 +179,8 @@ impl Archive {
             return Err(ReadError::InexistantOut);
         }
         let path = path.as_ref().join(self.file.filename.clone());
-        self.file.write_to_path(&mut self.buffer, path)
+        self.file
+            .write_to_path(&mut self.buffer.try_borrow_mut().unwrap(), path)
     }
 
     pub fn paths(self) -> Vec<String> {
@@ -200,7 +201,7 @@ impl Archive {
         p
     }
 
-    #[cfg(feature = "virtual_fs")]
+    //#[cfg(feature = "virtual_fs")]
     pub fn get_virtual<P: AsRef<Path>>(&mut self, path: P) -> Option<VirtualFile> {
         let sizes = match self.get_with_path(path) {
             Some(f) => Some((f.relative_offset as usize, f.filesize as usize)),
@@ -209,7 +210,10 @@ impl Archive {
         if sizes == None {
             return None;
         }
-        Some(VirtualFile::from_sizes(sizes.unwrap(), &mut self.buffer))
+        Some(VirtualFile::from_sizes(
+            sizes.unwrap(),
+            std::rc::Rc::clone(&self.buffer),
+        ))
     }
 }
 
@@ -267,16 +271,17 @@ impl File {
     }
 }
 
-#[cfg(feature = "virtual_fs")]
+//#[cfg(feature = "virtual_fs")]
 #[derive(Debug)]
-pub struct VirtualFile<'a> {
-    buffer: &'a mut std::io::BufReader<std::fs::File>,
+pub struct VirtualFile {
+    buffer: std::rc::Rc<std::cell::RefCell<std::io::BufReader<std::fs::File>>>,
     start_offset: usize,
     end_offset: usize,
     current_offset: usize,
 }
-#[cfg(feature = "virtual_fs")]
-impl<'a> VirtualFile<'a> {
+
+//#[cfg(feature = "virtual_fs")]
+impl VirtualFile {
     /*
     fn from_file(f: &File, b: &'a mut std::io::BufReader<std::fs::File>) -> Self {
         VirtualFile {
@@ -286,7 +291,10 @@ impl<'a> VirtualFile<'a> {
             current_offset: 0,
         }
     }*/
-    fn from_sizes(s: (usize, usize), b: &'a mut std::io::BufReader<std::fs::File>) -> Self {
+    fn from_sizes(
+        s: (usize, usize),
+        b: std::rc::Rc<std::cell::RefCell<std::io::BufReader<std::fs::File>>>,
+    ) -> Self {
         VirtualFile {
             buffer: b,
             start_offset: s.0,
@@ -296,10 +304,11 @@ impl<'a> VirtualFile<'a> {
     }
 }
 
-#[cfg(feature = "virtual_fs")]
-impl<'a> Read for VirtualFile<'a> {
+//#[cfg(feature = "virtual_fs")]
+impl Read for VirtualFile {
     fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
-        self.buffer.seek(std::io::SeekFrom::Start(
+        let mut a_buf = self.buffer.try_borrow_mut().unwrap();
+        a_buf.seek(std::io::SeekFrom::Start(
             (self.start_offset + self.current_offset) as u64,
         ))?;
         let bytes_left = self.end_offset - self.start_offset - self.current_offset;
@@ -312,15 +321,15 @@ impl<'a> Read for VirtualFile<'a> {
         if bytes_left == 0 || buffer.len() == 0 {
             return Ok(0);
         }
-        self.buffer.read(&mut buffer[0..nbuf_size])?;
+        a_buf.read(&mut buffer[0..nbuf_size])?;
         self.current_offset += nbuf_size;
         Ok(nbuf_size)
     }
 }
 //Os { code: 22, kind: InvalidInput, message: "Invalid argument" }
-#[cfg(feature = "virtual_fs")]
 
-impl<'a> Seek for VirtualFile<'a> {
+//#[cfg(feature = "virtual_fs")]
+impl Seek for VirtualFile {
     fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
         use std::io::SeekFrom;
         match pos {
@@ -357,7 +366,8 @@ impl<'a> Seek for VirtualFile<'a> {
                 }
             }
         }
-        self.buffer.seek(std::io::SeekFrom::Start(
+        let mut buffer = self.buffer.try_borrow_mut().unwrap();
+        buffer.seek(std::io::SeekFrom::Start(
             (self.current_offset + self.start_offset) as u64,
         ))?;
         Ok(self.current_offset as u64)
