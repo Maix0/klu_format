@@ -37,12 +37,17 @@ mod utils;
 use std::io::prelude::*;
 use std::path::Path;
 
+/// Result type use for reading an archive
 pub type ReadResult<T> = Result<T, ReadError>;
 
 #[derive(Debug)]
+/// Error used all reading archive functions
 pub enum ReadError {
+    /// An IO Error
     IoError(std::io::Error),
+    /// The archive isn't valid
     InvalidArchive,
+    /// The Out-Dir doesn't exist
     InexistantOut,
 }
 
@@ -67,6 +72,7 @@ impl std::fmt::Display for ReadError {
 }
 
 #[derive(Debug)]
+/// Main struct of this modules, This represent an archive, allows you to read from it;
 pub struct Archive {
     file: File,
     headersize: u64,
@@ -75,8 +81,10 @@ pub struct Archive {
 }
 
 impl Archive {
+    /// ID bytes of archive
     pub const ID: [u8; 4] = *b"KLU\x00";
 
+    /// Read an archive from a path
     pub fn from_path<P: AsRef<Path>>(path: P) -> ReadResult<Self> {
         let mut f = std::io::BufReader::new(std::fs::File::open(path)?);
         let mut buffer = vec![0x00; 4 + 8 + 8];
@@ -96,6 +104,8 @@ impl Archive {
             filesize,
         })
     }
+
+    /// Returns true if a file at given path exists inside the archive
     pub fn path_exist<P: AsRef<Path>>(&mut self, path: P) -> bool {
         match self.get_with_path(path) {
             Some(_) => true,
@@ -174,6 +184,7 @@ impl File {
 // Things that help the user, like locating a file with his path...
 /// User's function for using an [Archive]
 impl Archive {
+    /// Extract all archive's content onto a directory
     pub fn release<P: AsRef<Path>>(&mut self, path: P) -> ReadResult<()> {
         if !path.as_ref().exists() {
             return Err(ReadError::InexistantOut);
@@ -182,7 +193,7 @@ impl Archive {
         self.file
             .write_to_path(&mut self.buffer.try_borrow_mut().unwrap(), path)
     }
-
+    /// Return a `[Vec<String>]` with all files inside the archive
     pub fn paths(self) -> Vec<String> {
         let mut p = Vec::new();
         p.push(format!(
@@ -200,8 +211,21 @@ impl Archive {
         );
         p
     }
+    /// Extract a single file from the archive
+    /// Returns true if the file exists inside the archive, false otherwise
+    pub fn extract_file<P: AsRef<Path>>(&mut self, path: P, out: P) -> ReadResult<bool> {
+        if let Some(file) = self.get_with_path(path) {
+            file.write_to_path(&mut self.buffer.try_borrow_mut().unwrap(), out)?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
 
-    //#[cfg(feature = "virtual_fs")]
+    #[cfg(feature = "virtual_fs")]
+    /// If the path given match a file , returns a [Some(VirtualFile)], else, return [None]
+    /// You can have as many [VirtualFile] as you want, even multiples pointing to the same "file",
+    /// as they are independend
     pub fn get_virtual<P: AsRef<Path>>(&mut self, path: P) -> Option<VirtualFile> {
         let sizes = match self.get_with_path(path) {
             Some(f) => Some((f.relative_offset as usize, f.filesize as usize)),
@@ -271,8 +295,13 @@ impl File {
     }
 }
 
-//#[cfg(feature = "virtual_fs")]
-#[derive(Debug)]
+#[cfg(feature = "virtual_fs")]
+#[derive(Debug, Clone)]
+/// Feature: "virtual_fs"
+///
+/// This represent a file from the archive, it implements [Read] and [Seek] so it can be used with
+/// a lot of io-based functions
+/// If you need something with [BufRead], just wrap a [std::io::BufReader] around an [VirtualFile]
 pub struct VirtualFile {
     buffer: std::rc::Rc<std::cell::RefCell<std::io::BufReader<std::fs::File>>>,
     start_offset: usize,
@@ -280,7 +309,7 @@ pub struct VirtualFile {
     current_offset: usize,
 }
 
-//#[cfg(feature = "virtual_fs")]
+#[cfg(feature = "virtual_fs")]
 impl VirtualFile {
     /*
     fn from_file(f: &File, b: &'a mut std::io::BufReader<std::fs::File>) -> Self {
@@ -302,9 +331,15 @@ impl VirtualFile {
             current_offset: 0,
         }
     }
+    /// Get the file's data
+    pub fn get_slice(&mut self) -> std::io::Result<Box<[u8]>> {
+        let mut buf = vec![0; self.end_offset - self.start_offset];
+        self.read(&mut buf)?;
+        Ok(buf.into_boxed_slice())
+    }
 }
 
-//#[cfg(feature = "virtual_fs")]
+#[cfg(feature = "virtual_fs")]
 impl Read for VirtualFile {
     fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
         let mut a_buf = self.buffer.try_borrow_mut().unwrap();
@@ -328,7 +363,7 @@ impl Read for VirtualFile {
 }
 //Os { code: 22, kind: InvalidInput, message: "Invalid argument" }
 
-//#[cfg(feature = "virtual_fs")]
+#[cfg(feature = "virtual_fs")]
 impl Seek for VirtualFile {
     fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
         use std::io::SeekFrom;
@@ -353,7 +388,7 @@ impl Seek for VirtualFile {
                 }
             }
             SeekFrom::End(n) => {
-                if (self.start_offset as i64) > self.end_offset as i64 - n as i64 {
+                if (self.start_offset as i64) > self.end_offset as i64 - n {
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::InvalidInput,
                         "Invalid argument",

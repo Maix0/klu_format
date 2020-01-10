@@ -1,6 +1,6 @@
 [package]
 name = "klu_core"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["maix0 <maix522@gmail.com>"]
 edition = "2018"
 description = "Klu file format core package"
@@ -10,8 +10,6 @@ license = "GPL-3.0"
 
 [dependencies]
 
-[dev-dependencies]
-image = "0.22.3"
-
 [features]
 virtual_fs = []
+all = ["virtual_fs"]

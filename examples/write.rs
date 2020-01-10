@@ -1,6 +1,6 @@
 extern crate klu_core;
 fn main() {
-    let archive = klu_core::write::Archive::from_path("./test/in").expect("Archive error");
+    let archive = klu_core::write::Archive::from_path("./test/archive").expect("Archive error");
     archive
         .write_to_path("./test/archive.klu")
         .expect("Archive write error");
