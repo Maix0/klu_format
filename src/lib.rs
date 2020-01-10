@@ -9,7 +9,7 @@
     unused_import_braces
 )]
 /**
-    A KLU archive library, allow the creation and reading of archive
+    A KLU archive library, allow the creation and reading of archivea
 */
 pub mod read;
 pub mod write;

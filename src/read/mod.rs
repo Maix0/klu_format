@@ -194,7 +194,7 @@ impl Archive {
             .write_to_path(&mut self.buffer.try_borrow_mut().unwrap(), path)
     }
     /// Return a `[Vec<String>]` with all files inside the archive
-    pub fn paths(self) -> Vec<String> {
+    pub fn paths(&self) -> Vec<String> {
         let mut p = Vec::new();
         p.push(format!(
             "{}{}",
