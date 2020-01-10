@@ -1,6 +1,6 @@
 [package]
 name = "klu_core"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["maix0 <maix522@gmail.com>"]
 edition = "2018"
 description = "Klu file format core package"
