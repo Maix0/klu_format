@@ -51,7 +51,7 @@ dependencies = [
 
 [[package]]
 name = "klu"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "klu_core",
  "structopt",
@@ -59,7 +59,7 @@ dependencies = [
 
 [[package]]
 name = "klu_core"
-version = "0.1.0"
+version = "0.2.1"
 
 [[package]]
 name = "libc"

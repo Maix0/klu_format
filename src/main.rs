@@ -19,6 +19,11 @@ enum SubCmd {
         #[structopt(about = "Path to archive")]
         archive: PathBuf,
         #[structopt(parse(from_os_str))]
+        #[structopt(short = "f", long = "file", default_value = ".")]
+        #[structopt(about = "File to extract from archive. '.' mean all files")]
+        file: PathBuf,
+
+        #[structopt(parse(from_os_str))]
         #[structopt(about = "Path where archive's file will be released")]
         path: PathBuf,
     },
@@ -42,7 +47,11 @@ enum SubCmd {
 fn main() {
     let opt = Commands::from_args();
     match match opt.sub {
-        SubCmd::Extract { path, archive } => cmds::extract(path, archive),
+        SubCmd::Extract {
+            path,
+            archive,
+            file,
+        } => cmds::extract(path, archive, file),
         SubCmd::Pack { path, archive } => cmds::pack(path, archive),
         SubCmd::List { archive } => cmds::list(archive),
     } {

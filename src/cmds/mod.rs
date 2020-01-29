@@ -19,7 +19,7 @@ pub fn pack(pack: PathBuf, archive: PathBuf) -> Result<(), String> {
     Ok(())
 }
 
-pub fn extract(extract: PathBuf, archive: PathBuf) -> Result<(), String> {
+pub fn extract(extract: PathBuf, archive: PathBuf, file: PathBuf) -> Result<(), String> {
     match std::fs::create_dir_all(&extract) {
         Ok(_) => (),
         Err(e) => {
@@ -33,7 +33,14 @@ pub fn extract(extract: PathBuf, archive: PathBuf) -> Result<(), String> {
             return Err(format!("Error while reading archive from file: \n{}", e));
         }
     }
-    match a.unwrap().release(extract) {
+    let mut a = a.unwrap();
+    let file = if file == PathBuf::from(".") {
+        PathBuf::from(&a.paths()[0])
+    } else {
+        file
+    };
+
+    match a.extract_file(file, extract) {
         Ok(_) => {}
         Err(e) => {
             return Err(format!("Error while extracting archive: \n{}", e));

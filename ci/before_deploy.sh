@@ -21,10 +21,12 @@ main() {
     cross rustc --bin klu --target $TARGET --release -- -C lto
 
     # TODO Update this to package the right artifacts
-    cp target/$TARGET/release/klu* $stage/
-
+	
+	cp target/$TARGET/release/klu* $stage/
+	
     cd $stage
-    tar czf $src/$CRATE_NAME-$TRAVIS_TAG-$TARGET.tar.gz *
+	find . -type f ! -name 'klu(.exe)?' -delete
+	tar czf $src/$CRATE_NAME-$TRAVIS_TAG-$TARGET.tar.gz *
     cd $src
 
     rm -rf $stage
