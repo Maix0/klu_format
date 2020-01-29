@@ -215,6 +215,11 @@ impl Archive {
     /// Returns true if the file exists inside the archive, false otherwise
     pub fn extract_file<P: AsRef<Path>>(&mut self, path: P, out: P) -> ReadResult<bool> {
         if let Some(file) = self.get_with_path(path) {
+            let mut out = out.as_ref().to_path_buf();
+            if !file.is_file {
+                out = out.join(&file.filename);
+                std::fs::create_dir(&out)?;
+            }
             file.write_to_path(&mut self.buffer.try_borrow_mut().unwrap(), out)?;
             Ok(true)
         } else {
