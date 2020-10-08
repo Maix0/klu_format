@@ -1,0 +1,12 @@
+[package]
+name = "klu_v2"
+version = "0.1.0"
+authors = ["Maix0 <maix522@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+nom = "5.1.2"
+thiserror = "1.0.20"
+walkdir = "2.3.1"
