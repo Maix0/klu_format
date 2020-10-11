@@ -1,55 +1,70 @@
 pub mod read {
     #![cfg_attr(debug_assertions, allow(dead_code))]
-    pub const MAGIC: [u8; 4] = *b"KLU\0";
+    use std::path::{Path, PathBuf};
+    pub(crate) const MAGIC: [u8; 4] = *b"KLU\0";
     #[derive(Debug, Eq, PartialEq, Clone)]
-    pub struct Archive {
-        pub filesize: u64,
-        pub headersize: u64,
-        pub files: Vec<File>,
+    pub(crate) struct Archive {
+        pub(crate) filesize: u64,
+        pub(crate) headersize: u64,
+        pub(crate) files: Vec<File>,
     }
     #[derive(Debug, Eq, PartialEq, Clone)]
-    pub struct File {
-        pub header: Header,
-        pub absolute_offset: u64,
-        pub childs: Vec<File>,
+    pub(crate) struct File {
+        pub(crate) header: Header,
+        pub(crate) absolute_offset: u64,
+        pub(crate) childs: Vec<File>,
     }
 
     #[derive(Debug, Eq, PartialEq, Clone)]
-    pub struct Header {
-        pub filename_length: u8, // 5 bits;
-        pub unused: u8,          // 2 bits
-        pub is_file: bool,       // true = File, false = Folder;
-        pub filesize: u64,       // 8 bytes
-        pub filename: String,    // max 31 bytes
+    pub(crate) struct Header {
+        pub(crate) filename_length: u8, // 5 bits;
+        pub(crate) unused: u8,          // 2 bits
+        pub(crate) is_file: bool,       // true = File, false = Folder;
+        pub(crate) filesize: u64,       // 8 bytes
+        pub(crate) filename: String,    // max 31 bytes
+    }
+    #[derive(Debug, Eq, Clone, PartialEq)]
+    pub struct ArchiveFile {
+        pub(crate) file_path: PathBuf,
+        pub(crate) archive: super::read::Archive,
     }
 }
 
-pub mod write {
-    use std::path::{Path, PathBuf};
+pub(crate) mod extract {
+    use std::path::PathBuf;
+    #[derive(Debug, Clone)]
+    pub struct ExtractOption {
+        pub(crate) base_path: PathBuf, // Base path of the extraction
+        pub(crate) replace: bool,      // Replace files, file -> dir and such
+    }
+}
+
+pub(crate) mod write {
+    use std::path::PathBuf;
     #[derive(Debug, Eq, Clone, PartialEq)]
-    pub struct Archive {
-        pub base_path: PathBuf,
-        pub childs: Vec<File>,
+    pub(crate) struct Archive {
+        pub(crate) base_path: PathBuf,
+        pub(crate) childs: Vec<File>,
     }
 
     #[derive(Debug, Eq, Clone, PartialEq)]
-    pub struct File {
-        pub path: PathBuf,
-        pub header: Header,
-        pub childs: Vec<File>,
+    pub(crate) struct File {
+        pub(crate) path: PathBuf,
+        pub(crate) header: Header,
+        pub(crate) childs: Vec<File>,
     }
 
     #[derive(Debug, Eq, PartialEq, Clone)]
-    pub struct Header {
-        pub filename_length: u8, // 5 bits;
-        pub unused: u8,          // 2 bits
-        pub is_file: bool,       // true = File, false = Folder;
-        pub filesize: u64,       // 8 bytes
-        pub filename: String,    // max 31 bytes
+    pub(crate) struct Header {
+        pub(crate) filename_length: u8, // 5 bits;
+        pub(crate) unused: u8,          // 2 bits
+        pub(crate) is_file: bool,       // true = File, false = Folder;
+        pub(crate) filesize: u64,       // 8 bytes
+        pub(crate) filename: String,    // max 31 bytes
     }
 
     impl File {
-        pub fn file_size(&self) -> u64 {
+        pub(crate) fn file_size(&self) -> u64 {
             if self.header.is_file {
                 self.header.filesize
             } else {
@@ -60,7 +75,7 @@ pub mod write {
                 size
             }
         }
-        pub fn header_size(&self) -> u64 {
+        pub(crate) fn header_size(&self) -> u64 {
             if self.header.is_file {
                 0
             } else {
@@ -73,7 +88,7 @@ pub mod write {
         }
 
         #[inline]
-        pub fn update_size(mut self) -> Self {
+        pub(crate) fn update_size(mut self) -> Self {
             self.header.filesize = self.file_size();
             self
         }

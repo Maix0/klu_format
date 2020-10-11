@@ -15,29 +15,28 @@ pub enum WriteError {
     #[error("Unknown Error")]
     Unknown,
 }
+
 pub type WriteResult<T> = Result<T, WriteError>;
 
-pub fn path_to_archive<P: AsRef<Path>>(path: P) -> WriteResult<types::Archive> {
+pub(crate) fn single_path_to_archive<P: AsRef<Path>>(path: P) -> WriteResult<types::Archive> {
+    let file = path_to_file(&path)?;
+    Ok(types::Archive {
+        base_path: path.as_ref().to_path_buf(),
+        childs: vec![file],
+    })
+}
+
+pub(crate) fn multi_path_to_archive<P: AsRef<Path>>(path: P) -> WriteResult<types::Archive> {
     let metadata = std::fs::metadata(&path)?;
     if metadata.is_dir() {
-        let filename = path
-            .as_ref()
-            .file_name()
-            .ok_or(WriteError::FilenameError(path.as_ref().to_path_buf()))?
-            .to_str()
-            .ok_or(WriteError::FilenameNotUTF8(path.as_ref().to_path_buf()))?
-            .to_string();
-        if filename.bytes().len() > 31 {
-            return Err(WriteError::FilenameNotUTF8(path.as_ref().to_path_buf()));
+        let mut files = Vec::new();
+        for file in path.as_ref().read_dir()?.into_iter() {
+            files.push(path_to_file(file?.path())?);
         }
-        let header = types::Header {
-            unused: 0,
-            filename_length: filename.bytes().len() as u8,
-            filename,
-            is_file: false,
-            filesize: metadata.len(),
-        };
-        todo!()
+        Ok(types::Archive {
+            base_path: path.as_ref().to_path_buf(),
+            childs: files,
+        })
     } else {
         let file = path_to_file(&path)?;
         Ok(types::Archive {
@@ -47,7 +46,7 @@ pub fn path_to_archive<P: AsRef<Path>>(path: P) -> WriteResult<types::Archive> {
     }
 }
 
-pub fn path_to_file<P: AsRef<Path>>(path: P) -> WriteResult<types::File> {
+pub(crate) fn path_to_file<P: AsRef<Path>>(path: P) -> WriteResult<types::File> {
     let metadata = std::fs::metadata(&path)?;
     if metadata.is_dir() {
         let filename = path
@@ -90,7 +89,7 @@ pub fn path_to_file<P: AsRef<Path>>(path: P) -> WriteResult<types::File> {
             .ok_or(WriteError::FilenameNotUTF8(path.as_ref().to_path_buf()))?
             .to_string();
         if filename.bytes().len() > 31 {
-            return Err(WriteError::FilenameNotUTF8(path.as_ref().to_path_buf()));
+            return Err(WriteError::FileNameTooLong(path.as_ref().to_path_buf()));
         }
         let header = types::Header {
             unused: 0,

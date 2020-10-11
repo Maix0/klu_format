@@ -16,14 +16,14 @@ pub enum ReadError {
     IllegalFilename(u64),
     #[error("Missing Archivesize or Headersize\n Near: 0x{0:X?}")]
     MissingArchiveInfo(u64),
-    #[error("Incomplete Header\n Near: 0x{0:X?}")]
-    IncompleteHeader(u64),
-    #[error("Filejump data Erro\n Near: 0x{0:X?}r")]
-    FileJump(u64),
+    #[error("Incomplete Header, Needed {0} bytes\n Near: 0x{1:X?}")]
+    IncompleteHeader(u64, u64),
+    #[error("Filejump data Error, Needed {0} bytes\n Near: 0x{1:X?}r")]
+    FileJump(u64, u64),
     #[error("Missing FileInfo\n Near: 0x{0:X?}")]
     MissingFileInfo(u64),
 }
-pub fn parse_magic(b: &[u8], file_offset: u64) -> NomReadErr<'_, &[u8]> {
+pub(crate) fn parse_magic(b: &[u8], file_offset: u64) -> NomReadErr<'_, &[u8]> {
     par::tag::<&[u8], &[u8], (&[u8], nom::error::ErrorKind)>(b"KLU\0")(b).map_err(|e| {
         e.map(|inner| {
             use std::convert::TryInto;
@@ -44,7 +44,7 @@ fn parse_bit<E>(e: nom::Err<E>) -> nom::Err<E> {
     }
 }
 
-pub fn parse_header(b: &[u8], file_offset: u64) -> NomReadErr<'_, types::read::Header> {
+pub(crate) fn parse_header(b: &[u8], file_offset: u64) -> NomReadErr<'_, types::read::Header> {
     let ((input, pos), filename_length) =
         par_bit::take::<&[u8], u8, u32, ()>(5)((b, 0)).map_err(|e: nom::Err<_>| {
             parse_bit(e.map(|_| (b, ReadError::MissingHeaderInfoByte(file_offset))))
@@ -57,7 +57,7 @@ pub fn parse_header(b: &[u8], file_offset: u64) -> NomReadErr<'_, types::read::H
         par_bit::take::<&[u8], u8, u32, ()>(1)((input, pos)).map_err(|e: nom::Err<_>| {
             parse_bit(e.map(|_| (b, ReadError::MissingHeaderInfoByte(file_offset))))
         })?;
-    let (input, filesize) = nom::number::streaming::be_u64::<(_, nom::error::ErrorKind)>(input)
+    let (input, filesize) = nom::number::complete::be_u64::<(_, nom::error::ErrorKind)>(input)
         .map_err(|e| e.map(|e| (e.0, ReadError::MissingHeaderFileSize(file_offset))))?;
     let (input, str_bytes) =
         par::take::<u8, &[u8], (&[u8], nom::error::ErrorKind)>(filename_length)(input)
@@ -78,17 +78,23 @@ pub fn parse_header(b: &[u8], file_offset: u64) -> NomReadErr<'_, types::read::H
     ))
 }
 
-pub fn parse_archive(b: &[u8]) -> NomReadErr<'_, types::read::Archive> {
-    let (input, _magic) = parse_magic(b, 0)?;
-    let (input, headersize) = nom::number::streaming::be_u64::<(_, nom::error::ErrorKind)>(input)
-        .map_err(|e| e.map(|e| (e.0, ReadError::MissingArchiveInfo(4))))?;
-    let (input, filesize) = nom::number::streaming::be_u64::<(_, nom::error::ErrorKind)>(input)
-        .map_err(|e| e.map(|e| (e.0, ReadError::MissingArchiveInfo(12))))?;
-    let (input, header_data) =
-        par::take::<u64, &[u8], (&[u8], nom::error::ErrorKind)>(headersize)(input)
-            .map_err(|e| e.map(|e1: (&[u8], _)| (e1.0, ReadError::IncompleteHeader(20))))?;
-    let (_, headers) = parse_headerlist(header_data)?;
-    let (input, files) = parse_filelist(input, headers, 4 + 8 + 8 + headersize)?; //Vec::new();
+pub(crate) fn parse_archive(b: &[u8]) -> NomReadErr<'_, types::read::Archive> {
+    let mut hint = 0;
+    let (input, _magic) = parse_magic(b, hint)?;
+    hint += 4;
+    let (input, headersize) = nom::number::complete::be_u64::<(_, nom::error::ErrorKind)>(input)
+        .map_err(|e| e.map(|e| (e.0, ReadError::MissingArchiveInfo(hint))))?;
+    hint += 8;
+    let (input, filesize) = nom::number::complete::be_u64::<(_, nom::error::ErrorKind)>(input)
+        .map_err(|e| e.map(|e| (e.0, ReadError::MissingArchiveInfo(hint))))?;
+    hint += 8;
+    let (input, header_data) = par::take::<u64, &[u8], (&[u8], nom::error::ErrorKind)>(headersize)(
+        input,
+    )
+    .map_err(|e| e.map(|e1: (&[u8], _)| (e1.0, ReadError::IncompleteHeader(headersize, 20))))?;
+    let (_, headers) = parse_headerlist(header_data, hint)?;
+    hint += headersize;
+    let (input, files) = parse_filelist(input, headers, 4 + 8 + 8 + headersize, hint)?; //Vec::new();
     Ok((
         input,
         types::read::Archive {
@@ -99,31 +105,42 @@ pub fn parse_archive(b: &[u8]) -> NomReadErr<'_, types::read::Archive> {
     ))
 }
 
-pub fn parse_headerlist(b: &[u8], file_offset: u64) -> NomReadErr<'_, Vec<types::read::Header>> {
+pub(crate) fn parse_headerlist(
+    b: &[u8],
+    file_offset: u64,
+) -> NomReadErr<'_, Vec<types::read::Header>> {
+    let mut file_offset = file_offset;
     let mut header_list: Vec<types::read::Header> = Vec::new();
     let mut current_input = b;
     while !current_input.is_empty() {
-        let (new_input, header) = parse_header(current_input)?;
+        let (new_input, header) = parse_header(current_input, file_offset)?;
+        file_offset += current_input.len() as u64 - new_input.len() as u64;
         current_input = new_input;
         header_list.push(header);
     }
     Ok((current_input, header_list))
 }
 
-pub fn parse_file(
+pub(crate) fn parse_file(
     b: &[u8],
     header: types::read::Header,
     offset: u64,
     file_offset: u64,
 ) -> NomReadErr<'_, types::read::File> {
-    if header.is_file {
-        let (input, headersize) = nom::number::streaming::be_u64::<(_, nom::error::ErrorKind)>(b)
-            .map_err(|e| e.map(|e| (e.0, ReadError::MissingFileInfo)))?;
-        let (input, header_data) =
-            par::take::<u64, &[u8], (&[u8], nom::error::ErrorKind)>(headersize)(input)
-                .map_err(|e| e.map(|e1: (&[u8], _)| (e1.0, ReadError::IncompleteHeader)))?;
-        let (_, headers) = parse_headerlist(header_data)?;
-        let (input, files) = parse_filelist(input, headers, 8 + headersize + offset)?;
+    let mut file_offset = file_offset;
+    if !header.is_file {
+        let (input, headersize) = nom::number::complete::be_u64::<(_, nom::error::ErrorKind)>(b)
+            .map_err(|e| e.map(|e| (e.0, ReadError::MissingFileInfo(file_offset))))?;
+        file_offset += 8;
+        let (input, header_data) = par::take::<u64, &[u8], (&[u8], nom::error::ErrorKind)>(
+            headersize,
+        )(input)
+        .map_err(|e| {
+            e.map(|e1: (&[u8], _)| (e1.0, ReadError::IncompleteHeader(headersize, file_offset)))
+        })?;
+        let (_, headers) = parse_headerlist(header_data, file_offset)?;
+        file_offset += headersize;
+        let (input, files) = parse_filelist(input, headers, 8 + headersize + offset, file_offset)?;
         Ok((
             input,
             types::read::File {
@@ -134,9 +151,12 @@ pub fn parse_file(
         ))
     } else {
         // TODO: Jump here
-        let (rest, _jump) =
-            par::take::<u64, &[u8], (&[u8], nom::error::ErrorKind)>(header.filesize)(b)
-                .map_err(|e| e.map(|e1: (&[u8], _)| (e1.0, ReadError::FileJump)))?;
+        let (rest, _jump) = par::take::<u64, &[u8], (&[u8], nom::error::ErrorKind)>(
+            header.filesize,
+        )(b)
+        .map_err(|e| {
+            e.map(|e1: (&[u8], _)| (e1.0, ReadError::FileJump(header.filesize, file_offset)))
+        })?;
         Ok((
             rest,
             types::read::File {
@@ -148,21 +168,41 @@ pub fn parse_file(
     }
 }
 
-pub fn parse_filelist(
+pub(crate) fn parse_filelist(
     b: &[u8],
     headers: Vec<types::read::Header>,
     mut offset: u64,
     file_offset: u64,
 ) -> NomReadErr<'_, Vec<types::read::File>> {
+    let mut file_offset = file_offset;
     let mut files = Vec::new();
     let mut input = b;
     for header in headers {
         let fsize = header.filesize;
+        let fnamesize = header.filename_length;
         let (i, file) = parse_file(input, header, offset, file_offset)?;
         input = i;
         files.push(file);
         offset += fsize;
-        file_offset += 1 + 8 + header.filename_length as u64;
+        file_offset += 1 + 8 + fnamesize as u64;
     }
     Ok((input, files))
+}
+
+use std::path::{Path, PathBuf};
+impl types::read::ArchiveFile {
+    pub fn from_file<P: AsRef<Path>>(
+        path: P,
+    ) -> std::io::Result<Result<Self, crate::read::ReadError>> {
+        let buffer = std::fs::read(&path)?;
+        Ok(parse_archive(&buffer)
+            .map(|(_, a)| types::read::ArchiveFile {
+                archive: a,
+                file_path: path.as_ref().to_path_buf(),
+            })
+            .map_err(|err| match err {
+                nom::Err::Incomplete(_) => crate::read::ReadError::Unknown(0),
+                nom::Err::Failure(e) | nom::Err::Error(e) => e.1,
+            }))
+    }
 }
